@@ -1,0 +1,18 @@
+$ git clone https://github.com/Azure-Samples/azure-voting-app-redis.git
+$ cd azure-voting-app-redis/
+$ docker-compose up -d
+$ docker images
+$ az --version
+$ az login
+$ az group create --name MyLab-RG --location eastus
+$ az acr create --resource-group MyLab-RG --name mylabacr44 --sku Basic
+$ az acr login --name mylabacr44
+$ az acr list --resource-group mylab-rg --query "[].{acrLoginServer:loginServer}" --output table
+$ docker tag mcr.microsoft.com/azuredocs/azure-vote-front:v1 mylabacr44.azurecr.io/azure-vote-front:v1
+$ docker push mylabacr44.azurecr.io/azure-vote-front:v1
+$ az aks install-cli
+$ az aks get-credentials --resource-group MyLab-RG --name MyLabAKSCluster
+$ kubectl get nodes
+$ nano azure-vote-all-in-one-redis.yaml
+kubectl apply -f azure-vote-all-in-one-redis.yaml
+$ kubectl get service azure-vote-front --watch
