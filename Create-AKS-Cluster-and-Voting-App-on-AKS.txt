@@ -14,5 +14,7 @@ $ az aks install-cli
 $ az aks get-credentials --resource-group MyLab-RG --name MyLabAKSCluster
 $ kubectl get nodes
 $ nano azure-vote-all-in-one-redis.yaml
-kubectl apply -f azure-vote-all-in-one-redis.yaml
+$ kubectl apply -f azure-vote-all-in-one-redis.yaml
 $ kubectl get service azure-vote-front --watch
+
+Video---https://youtu.be/tCYKZo5Auc0
