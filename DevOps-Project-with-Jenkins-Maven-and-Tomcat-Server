@@ -1,0 +1,86 @@
+===============================Jenkins Installation==================================
+https://www.jenkins.io/doc/book/installing/linux/
+https://www.jenkins.io/doc/tutorials/tutorial-for-installing-jenkins-on-AWS/
+$ sudo yum update –y
+sudo wget -O /etc/yum.repos.d/jenkins.repo \
+    https://pkg.jenkins.io/redhat-stable/jenkins.repo
+$ sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+$ sudo yum upgrade
+$ amazon-linux-extras install epel
+$ sudo amazon-linux-extras install java-openjdk11 -y
+$ yum install java-11-amazon-corretto -y
+$ sudo yum install jenkins -y
+$ sudo systemctl enable jenkins       //Enable the Jenkins service to start at boot
+$ sudo systemctl start jenkins        //Start Jenkins as a service
+$ java -version
+$ javac -version
+$ systemctl status jenkins
+===============================Install and Configure Maven==================================
+https://maven.apache.org/install.html
+Copy the download link from https://maven.apache.org/download.cgi
+$ sudo su  & cd ~
+$ cd /opt
+$ wget https://dlcdn.apache.org/maven/maven-3/3.9.3/binaries/apache-maven-3.9.3-bin.tar.gz
+$ tar -xzvf apache-maven-3.9.3-bin.tar.gz
+$ ls
+$ mv apache-maven-3.9.3 maven
+$ ll
+$ cd maven
+$ cd bin/
+$ ./mvn -v  
+$ cd ~
+$ pwd
+$ ll -a      //It will show the hidden files also
+$ vim .bash_profile
+$ find / -name java-11*
+//enter below lines below the 2nd fi
+M2_HOME=/opt/maven
+M2=/opt/maven/bin
+JAVA_HOME=/usr/lib/jvm/java-11-openjdk-11.0.19.0.7-1.amzn2.0.1.x86_64
+PATH=$PATH:$HOME/bin:$JAVA_HOME:$M2_HOME:$M2
+$ echo $PATH
+$ source .bash_profile
+$ echo $PATH
+$ mvn -v
+Java Path -- /usr/lib/jvm/java-11-openjdk-11.0.19.0.7-1.amzn2.0.1.x86_64
+MAVEN_HOME:/opt/maven     //You need to add this at Jenkins Job under Maven Installations
+===============================Setup Tomcat Server==================================
+$ sudo su
+$ cd ~
+$ amazon-linux-extras install java-openjdk11
+$ java -version
+Copy the link for tar.gz file from https://tomcat.apache.org/download-90.cgi
+$ pwd //you should be in root
+$ cd /opt
+$ wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.76/bin/apache-tomcat-9.0.76.tar.gz
+$ tar -xvzf apache-tomcat-9.0.76.tar.gz
+$ mv apache-tomcat-9.0.76 tomcat
+$ ./startup.sh 
+$ find / -name context.xml
+$ vim /opt/tomcat/webapps/host-manager/META-INF/context.xml
+Need to add <!-- at start and --> at end to comment in xml
+$ vim /opt/tomcat/webapps/manager/META-INF/context.xml
+$ ./shutdown.sh
+$ ./startup.sh
+$ cd tomcat
+$ cd conf
+$ vim tomcat-users.xml
+shift+G to go to end of the xml file
+Need to add three users in tomcat-users.xml file as below,
+ <role rolename="manager-gui"/>
+ <role rolename="manager-script"/>
+ <role rolename="manager-jmx"/>
+ <role rolename="manager-status"/>
+ <user username="admin" password="admin" roles="manager-gui, manager-script, manager-jmx, manager-status"/>
+ <user username="deployer" password="deployer" roles="manager-script"/>
+ <user username="tomcat" password="s3cret" roles="manager-gui"/>
+
+Poll SCM schedule to verify repository at every min is "* * * * *"
+
+
+
+
+
+
+
+
