@@ -182,9 +182,40 @@ spec:
 
   type: LoadBalancer
 
+===============================Integrate Bootstrap Server with Ansible==================================
+$ passwd root
+$ nano /etc/ansible/hosts
+[ansible]
+localhost
 
+[kubernetes]
+BootStrap-Server-IP
 
+$ ssh-copy-id root@BootStrap-Server-IP
 
+# Create Ansible Playbook to Run Deployment and Service Manifest files
+$ mv regapp.yml creat_image_regapp.yml 
+$ nano kube_deploy.yml
+---
+- hosts: kubernetes
+  user: root
 
+  tasks:
+    - name: deploy regapp on kubernetes
+      command: kubectl apply -f regapp-deployment.yml
+
+    - name: create service for regapp
+      command: kubectl apply -f regapp-service.yml
+
+    - name: update deployment with new pods if image updated in docker hub
+      command: kubectl rollout restart deployment.apps/virtualtechbox-regapp
+
+$ ansible-playbook kube_deploy.yml
+Exec command:ansible-playbook /opt/Docker/kube_deploy.yml
+
+===============================Cleanup==================================
+$ kubectl delete deployment.apps/virtualtechbox-regapp
+$ kubectl delete service/virtualtechbox-service
+$ eksctl delete cluster virtualtechbox --region ap-south-1     OR    eksctl delete cluster --region=ap-south-1 --name=virtualtechbox-cluster
 
 
