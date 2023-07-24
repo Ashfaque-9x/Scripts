@@ -44,3 +44,147 @@ $ echo $PATH
 $ mvn -v
 Java Path -- /usr/lib/jvm/java-11-openjdk-11.0.19.0.7-1.amzn2.0.1.x86_64
 MAVEN_HOME:/opt/maven     //You need to add this at Jenkins Job under Maven Installations
+===============================Ansible Server setup and Ansible Installation==================================
+$ sudo nano /etc/hostname
+$ useradd ansadmin
+$ passwd ansadmin
+$ visudo 
+ansadmin ALL=(ALL)       NOPASSWD: ALL      //add this in sudo file.
+$ cd /etc/ssh
+$ nano sshd_config
+$ service sshd reload
+$ ssh-keygen
+public key is at /home/ansadmin/.ssh/id_rsa.pub
+$ sudo su , amazon-linux-extras install ansible2
+$ ansible --version
+===============================Integrate Ansible with Jenkins==================================
+$ cd /opt
+$ sudo mkdir docker
+$ sudo chown ansadmin:ansadmin docker
+Source files:webapp/target/*.war       Remove prefix:webapp/target        Remote directory://opt//docker
+===============================Install and Configure Docker on Ansible Server==================================
+$  sudo yum install docker
+$ sudo usermod -aG docker ansadmin
+$ id ansadmin
+$ sudo service docker start
+$ sudo systemctl start docker
+$ nano Dockerfile
+FROM tomcat:latest
+RUN cp -R /usr/local/tomcat/webapps.dist/* /usr/local/tomcat/webapps
+COPY ./*.war /usr/local/tomcat/webapps
+===============================Create Ansible Playbook to Create Docker Image and Copy Image to DockerHub==================================
+$ ifconfig 
+$ sudo nano /etc/ansible/hosts
+[ansible]
+local-host-ip
+$ ssh-copy-id local-host-ip
+$ nano regapp.yml
+---
+- hosts: ansible
+
+  tasks:
+  - name: create docker image
+    command: docker build -t regapp:latest .
+    args:
+     chdir: /opt/docker
+
+  - name: create tag to push image onto dockerhub
+    command: docker tag regapp:latest ashfaque9x/regapp:latest
+
+  - name: push docker image
+    command: docker push ashfaque9x/regapp:latest
+
+$ ansible-playbook regapp.yml --check
+$ ansible-playbook regapp.yml
+Exec Command:ansible-playbook /opt/docker/regapp.yml
+===============================Setup Bootstrap Server for eksctl==================================
+# Install AWS Cli on the above EC2
+Refer==https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+$ curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+$ unzip awscliv2.zip
+$ sudo ./aws/install
+         OR
+$ sudo yum remove -y aws-cli
+$ pip3 install --user awscli
+$ sudo ln -s $HOME/.local/bin/aws /usr/bin/aws
+$ aws --version
+
+# Installing kubectl
+Refer===https://docs.aws.amazon.com/eks/latest/userguide/install-kubectl.html
+$ curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.27.1/2023-04-19/bin/linux/amd64/kubectl
+$ chmod +x ./kubectl 
+$ mv kubectl /bin  OR $ mv kubectl /usr/local/bin
+$ kubectl version --output=yaml
+
+#Installing or eksctl
+Refer==https://github.com/eksctl-io/eksctl/blob/main/README.md#installation
+$ curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+$ cd /tmp
+$ sudo mv /tmp/eksctl /bin   OR  $ sudo mv /tmp/eksctl /usr/local/bin
+$ eksctl version
+
+# Setup Kubernetes using eksctl
+Refer===https://github.com/aws-samples/eks-workshop/issues/734
+eksctl create cluster --name virtualtechbox-cluster \
+--region ap-south-1 \
+--node-type t2.small \
+$ kubectl get nodes
+
+# Create deployment Manifest File
+Refer===https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+$ nano regapp-deployment.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: virtualtechbox-regapp
+  labels:
+     app: regapp
+
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: regapp
+
+  template:
+    metadata:
+      labels:
+        app: regapp
+    spec:
+      containers:
+      - name: regapp
+        image: ashfaque9x/regapp
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+
+# Create Service Manifest File 
+Refer===https://kubernetes.io/docs/tutorials/services/connect-applications-service/
+$ nano regapp-service.yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: virtualtechbox-service
+  labels:
+    app: regapp 
+spec:
+  selector:
+    app: regapp 
+
+  ports:
+    - port: 8080
+      targetPort: 8080
+
+  type: LoadBalancer
+
+
+
+
+
+
+
