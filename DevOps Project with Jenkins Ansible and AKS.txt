@@ -1,0 +1,162 @@
+################################################################### Jenkins Installation on Ubuntu #########################################################################
+$ sudo apt update
+$ sudo apt install default-jdk
+$ update-alternatives --config java    //To find out where apt installed Java on Ubuntu
+$ sudo nano /etc/environment
+PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin"
+JAVA_HOME="/lib/jvm/java-11-openjdk-amd64/bin/java"
+$ source /etc/environment 
+$ echo $JAVA_HOME
+#Install Jenkins with weekly release of below page
+Refer---https://www.jenkins.io/doc/book/installing/linux/
+curl -fsSL https://pkg.jenkins.io/debian/jenkins.io-2023.key | sudo tee \
+  /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
+  https://pkg.jenkins.io/debian binary/ | sudo tee \
+  /etc/apt/sources.list.d/jenkins.list > /dev/null
+sudo apt-get update
+sudo apt-get install jenkins
+$ sudo systemctl enable jenkins       //Enable the Jenkins service to start at boot
+$ sudo systemctl start jenkins        //Start Jenkins as a service
+$ systemctl status jenkins
+################################################################### Ansible Installation on Ubuntu #########################################################################
+Refer--https://phoenixnap.com/kb/install-ansible-ubuntu-20-04
+$ sudo adduser ansibleadmin
+$ sudo usermod -aG sudo ansibleadmin
+$ sudo init 6
+$ sudo su ansibleadmin
+$ ssh-keygen       //public key is at /home/ansibleadmin/.ssh/id_rsa.pub
+$ sudo apt-add-repository ppa:ansible/ansible
+$ sudo apt update
+$ sudo apt install ansible-core
+$ ansible --version
+$ cd /opt
+$ sudo mkdir docker
+$ sudo chown ansibleadmin:ansibleadmin docker
+$ sudo apt install docker.io
+$ systemctl status docker
+$ sudo usermod -aG docker ansibleadmin
+$ id ansibleadmin
+################################################### Create Ansible Playbook to Create Docker Image and Copy Image to DockerHub ###################################################
+$ sudo apt install net-tools
+$ifconfig
+$ sudo nano /etc/ansible/host
+$ ssh-copy-id localhost    //adding self ssh key
+$ nano cafe-app.yml
+---
+- hosts: ansible
+
+  tasks:
+  - name: clone repository
+    git:
+      repo: https://github.com/Ashfaque-9x/Cafe-App.git
+      dest: /opt/docker/cafe-app
+      clone: yes
+      update: yes
+
+  - name: create docker image
+    command: docker build -t cafe-app:latest /opt/docker/cafe-app
+    args:
+     chdir: /opt/docker/
+
+  - name: create tag to push image onto dockerhub
+    command: docker tag cafe-app:latest ashfaque9x/cafe-app:latest
+
+  - name: push docker image
+    command: docker push ashfaque9x/cafe-app:latest
+
+$ ansible-playbook cafe-app.yml --check
+$ ansible-playbook cafe-app.yml
+$ docker images
+$ docker login
+################################################### Install Azure CLI and Connect to Kubernetes from Azure CLI #######################################
+Refer--https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-linux?pivots=apt
+$ curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+$ az --version
+$ az login
+$ az aks install-cli
+$ az aks get-credentials --resource-group MyLab-RG --name mylab-cluster
+$ kubectl get nodes
+################################################### Create Deployment and Service Manisfest Files ###################################################
+Refer--https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+$ nano cafe-app-deployment.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mylab-cafe-app
+  labels:
+     app: cafe-app
+
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cafe-app
+
+  template:
+    metadata:
+      labels:
+        app: cafe-app
+    spec:
+      containers:
+      - name: cafe-app
+        image: ashfaque9x/cafe-app
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+
+Refer---https://kubernetes.io/docs/tutorials/services/connect-applications-service/
+$ nano cafe-app-service.yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mylab-service
+  labels:
+    app: cafe-app
+spec:
+  selector:
+    app: cafe-app 
+
+  ports:
+    - port: 80
+      targetPort: 80
+
+  type: LoadBalancer
+
+############################### Integrate Kube-Server with Ansible and Create Ansible Playbook for Deployment & Service Manifest files ###############################
+$ nano /etc/ssh/sshd_config
+PasswordAuthentication yes
+PermitRootLogin yes
+systemctl restart sshd
+$ passwd root
+$ ssh-copy-id root@10.0.0.6
+$ ssh 'root@10.0.0.6'
+$  mv cafe-app.yml create-image-cafe-app.yml 
+$ nano kubernetes-deploy.yml
+---
+- hosts: kubernetes
+  user: root
+
+  tasks:
+    - name: deploy cafeapp on kubernetes
+      command: kubectl apply -f cafe-app-deployment.yml
+
+    - name: create service for cafeapp
+      command: kubectl apply -f cafe-app-service.yml
+
+    - name: update deployment with new pods if image updated in docker hub
+      command: kubectl rollout restart deployment.apps/mylab-cafe-app
+
+
+$ ansible-playbook kubernetes-deploy.yml
+Exec command:ansible-playbook /opt/docker/kubernetes-deploy.yml
+############################################################## Cleanup ##############################################################
+$ kubectl delete deployment.apps/mylab-cafe-app
+$ kubectl delete service/mylab-service
+$ az aks delete --name mylab-cluster --resource-group MyLab-RG
+
