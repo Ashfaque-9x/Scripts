@@ -1,0 +1,42 @@
+################################# Create VM and Setup Jenkins, Azure CLI and Docker in It #################################
+1 ) install Java in it
+$ sudo apt update
+$ sudo apt upgrade
+$ sudo apt install openjdk-17-jre
+$ java -version
+2 ) Install Jenkins
+Refer----https://www.jenkins.io/doc/book/installing/linux/
+
+curl -fsSL https://pkg.jenkins.io/debian/jenkins.io-2023.key | sudo tee \
+  /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
+  https://pkg.jenkins.io/debian binary/ | sudo tee \
+  /etc/apt/sources.list.d/jenkins.list > /dev/null
+sudo apt-get update
+sudo apt-get install jenkins
+
+$ sudo systemctl enable jenkins       //Enable the Jenkins service to start at boot
+$ sudo systemctl start jenkins        //Start Jenkins as a service
+$ systemctl status jenkins
+
+3 ) Install Azure CLI
+Refer --- https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-linux?pivots=apt
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+4 ) Install Docker
+$ sudo apt-get install docker.io
+$ sudo usermod -aG docker $USER
+$ sudo usermod -aG docker jenkins
+$ sudo init 6
+
+################################# Create Jenkins Job to Build and Push Image to ACR #################################
+rm -rf Tetris-Game-App
+git clone https://github.com/Ashfaque-9x/Tetris-Game-App.git
+docker build -t mylabacr22.azurecr.io/tetris-game-app:latest .
+
+docker push mylabacr22.azurecr.io/tetris-game-app:latest
+
+################################# RELEASE TO AZURE WEB APPS #################################
+az webapp config container set --name tetris-game-app --resource-group MyTest-RG --docker-custom-image-name mylabacr22.azurecr.io/tetris-game-app:latest
+
+
