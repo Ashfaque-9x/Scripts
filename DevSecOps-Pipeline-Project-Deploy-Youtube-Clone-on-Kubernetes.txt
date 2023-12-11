@@ -234,14 +234,14 @@ sudo systemctl enable node_exporter
 sudo systemctl start node_exporter
 
 ##Install Grafana
-sudo apt-get update
-sudo apt-get install -y apt-transport-https software-properties-common
-wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
-echo "deb https://packages.grafana.com/oss/deb stable main" | sudo tee -a /etc/apt/sources.list.d/grafana.list
-sudo apt-get update
-sudo apt-get -y install grafana
-sudo systemctl enable grafana-server
-sudo systemctl start grafana-server
+$ sudo apt-get update
+$ sudo apt-get install -y apt-transport-https software-properties-common
+$ wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
+$ echo "deb https://packages.grafana.com/oss/deb stable main" | sudo tee -a /etc/apt/sources.list.d/grafana.list
+$ sudo apt-get update
+$ sudo apt-get -y install grafana
+$ sudo systemctl enable grafana-server
+$ sudo systemctl start grafana-server
 
 
 4--Commands to check services
@@ -269,24 +269,24 @@ $ curl -X POST http://localhost:9090/-/reload
 =============================================================================================================================================================================================
 [C] Create AWS EKS Cluster
 1--Install kubectl on Jenkins Server
- sudo apt update
- sudo apt install curl
- curl -LO https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl
- sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
- kubectl version --client
+ $ sudo apt update
+ $ sudo apt install curl
+ $ curl -LO https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl
+ $ sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+ $ kubectl version --client
 
 2--Install AWS Cli
-curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-sudo apt install unzip
-unzip awscliv2.zip
-sudo ./aws/install
-aws --version
+$ curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+$ sudo apt install unzip
+$ unzip awscliv2.zip
+$ sudo ./aws/install
+$ aws --version
 
 3--Installing  eksctl
-curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
-cd /tmp
-sudo mv /tmp/eksctl /bin
-eksctl version
+$ curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+$ cd /tmp
+$ sudo mv /tmp/eksctl /bin
+$ eksctl version
 
 4--Setup Kubernetes using eksctl
 eksctl create cluster --name virtualtechbox-cluster \
@@ -426,6 +426,7 @@ pipeline {
 
 =============================================================================================================================================================================================
 [G] Cleanup
+$ kubectl delete --all pods -n prometheus
 $ kubectl get all
 $ kubectl delete deployment.apps/virtualtechbox-regapp
 $ kubectl delete service/virtualtechbox-service
