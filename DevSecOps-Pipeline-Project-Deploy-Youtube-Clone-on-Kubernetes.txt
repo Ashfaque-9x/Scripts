@@ -426,9 +426,10 @@ pipeline {
 
 =============================================================================================================================================================================================
 [G] Cleanup
-$ kubectl delete --all pods -n prometheus
-$ kubectl get all
-$ kubectl delete deployment.apps/virtualtechbox-regapp
-$ kubectl delete service/virtualtechbox-service
-$ eksctl delete cluster virtualtechbox --region ap-south-1     OR    eksctl delete cluster --region=ap-south-1 --name=virtualtechbox-cluster
+$ kubectl delete --all pods -n prometheus                   //This command will delete all the pods in prometheus namespace
+$ kubectl delete namespace prometheus
+$ kubectl get all                                           //This command will show the all the deployments, pods & services in default namespace
+$ kubectl delete deployment.apps/virtualtechbox-cluster     //delete deployment in your k8s cluster
+$ kubectl delete service/virtualtechbox-service             //delete service for your deployment of k8s cluster
+$ eksctl delete cluster virtualtechbox-cluster --region ap-south-1     OR    eksctl delete cluster --region=ap-south-1 --name=virtualtechbox-cluster      //This command will delete your EKS cluster
 $ terraform destroy
