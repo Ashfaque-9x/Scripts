@@ -1,5 +1,5 @@
 Video --- https://youtu.be/Ybx_CGiEKZ4
-=================================================================================================================================================================================================================================
+=============================================================================================================================================================================================================================
 [A] Let's use Terraform to create an EC2 instance for Jenkins, Docker and SonarQube
 1--main.tf
 resource "aws_instance" "web" {
@@ -97,7 +97,7 @@ sudo apt-get install trivy -y
 4--
 terraform init, terraform plan, terraform apply -auto-approve
 
-========================================================================================================================================================================================================================================
+=============================================================================================================================================================================================================================
 Refer---https://archive.eksworkshop.com/intermediate/290_argocd/install/
 Refer--https://github.com/aws-samples/eks-workshop/issues/734
 [B] Create AWS EKS Cluster
@@ -131,7 +131,7 @@ eksctl create cluster --name virtualtechbox-cluster \
 
 5-- Verify Cluster with below command
 $ kubectl get nodes
-========================================================================================================================================================================================================================================
+=============================================================================================================================================================================================================================
 [C] Setup Monitoring for Kubernetes using Helm, Prometheus and Grafana Dashboard
 1 ) Install Helm Chart
 curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
@@ -170,7 +170,7 @@ kubectl get secret --namespace prometheus stable-grafana -o jsonpath="{.data.adm
 
 5) Import dashboard - 15760 - Load - Select Prometheus  & Click Import. 
 6) Import dashboard - 12740 - Load - Select Prometheus  & Click Import. 
-========================================================================================================================================================================================================================================
+=============================================================================================================================================================================================================================
 Refer---https://argo-cd.readthedocs.io/en/stable/cli_installation/
 [D] ArgoCD Installation on Kubernetes Cluster and Add EKS Cluster to ArgoCD
 1 ) First, create a namespace
@@ -209,8 +209,16 @@ Refer---https://argo-cd.readthedocs.io/en/stable/cli_installation/
      $ argocd cluster add i-08b9d0ff0409f48e7@virtualtechbox-cluster.ap-south-1.eksctl.io --name virtualtechbox-eks-cluster
      
 12 ) Now if you give command "$ argocd cluster list" you will get both the clusters EKS & AgoCD(in-cluster). This can be verified at ArgoCD Dashboard.
-========================================================================================================================================================================================================================================
+=============================================================================================================================================================================================================================
 [E] Verify the CI/CD Pipeline
 git config --global user.name "Ashfaque.Shaikh"
 git config --global user.email "ashfaque.s510@gmail.com"
 git clone https://github.com/Ashfaque-9x/a-reddit-clone.git
+=============================================================================================================================================================================================================================
+[F] Cleanup
+1--Delete namespace prometheus & argocd
+$ kubectl delete namespace prometheus  and $ kubectl delete namespace argocd
+2--Delete EKS Cluster
+$ eksctl delete cluster virtualtechbox-cluster --region ap-south-1     OR    eksctl delete cluster --region=ap-south-1 --name=virtualtechbox-cluster
+3--Delete EC2 Instance with below Terraform Command
+terraform destroy
