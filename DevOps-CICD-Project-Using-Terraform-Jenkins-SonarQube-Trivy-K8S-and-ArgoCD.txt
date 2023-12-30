@@ -1,0 +1,216 @@
+Video --- https://youtu.be/Ybx_CGiEKZ4
+=================================================================================================================================================================================================================================
+[A] Let's use Terraform to create an EC2 instance for Jenkins, Docker and SonarQube
+1--main.tf
+resource "aws_instance" "web" {
+  ami                    = "ami-0287a05f0ef0e9d9a"      #change ami id for different region
+  instance_type          = "t2.large"
+  key_name               = "Linux-VM-Key7"              #change key name as per your setup
+  vpc_security_group_ids = [aws_security_group.Jenkins-VM-SG.id]
+  user_data              = templatefile("./install.sh", {})
+
+  tags = {
+    Name = "Jenkins-SonarQube"
+  }
+
+  root_block_device {
+    volume_size = 40
+  }
+}
+
+resource "aws_security_group" "Jenkins-VM-SG" {
+  name        = "Jenkins-VM-SG"
+  description = "Allow TLS inbound traffic"
+
+  ingress = [
+    for port in [22, 80, 443, 8080, 9000, 3000] : {
+      description      = "inbound rules"
+      from_port        = port
+      to_port          = port
+      protocol         = "tcp"
+      cidr_blocks      = ["0.0.0.0/0"]
+      ipv6_cidr_blocks = []
+      prefix_list_ids  = []
+      security_groups  = []
+      self             = false
+    }
+  ]
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "Jenkins-VM-SG"
+  }
+}
+
+2--provider.tf
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+# Configure the AWS Provider
+provider "aws" {
+  region = "ap-south-1"     #change region as per you requirement
+}
+
+3--install.sh
+#!/bin/bash
+sudo apt update -y
+wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | tee /etc/apt/keyrings/adoptium.asc
+echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list
+sudo apt update -y
+sudo apt install temurin-17-jdk -y
+/usr/bin/java --version
+curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/ | sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
+sudo apt-get update -y
+sudo apt-get install jenkins -y
+sudo systemctl start jenkins
+sudo systemctl status jenkins
+
+##Install Docker and Run SonarQube as Container
+sudo apt-get update
+sudo apt-get install docker.io -y
+sudo usermod -aG docker ubuntu
+sudo usermod -aG docker jenkins  
+newgrp docker
+sudo chmod 777 /var/run/docker.sock
+docker run -d --name sonar -p 9000:9000 sonarqube:lts-community
+
+#install trivy
+sudo apt-get install wget apt-transport-https gnupg lsb-release -y
+wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+sudo apt-get update
+sudo apt-get install trivy -y
+
+
+4--
+terraform init, terraform plan, terraform apply -auto-approve
+
+========================================================================================================================================================================================================================================
+Refer---https://archive.eksworkshop.com/intermediate/290_argocd/install/
+Refer--https://github.com/aws-samples/eks-workshop/issues/734
+[B] Create AWS EKS Cluster
+1--Install kubectl on Jenkins Server
+ sudo apt update
+ sudo apt install curl
+ curl -LO https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl
+ sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+ kubectl version --client
+
+2--Install AWS Cli
+
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+sudo apt install unzip
+unzip awscliv2.zip
+sudo ./aws/install
+aws --version
+
+3--Installing  eksctl
+
+curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+cd /tmp
+sudo mv /tmp/eksctl /bin
+eksctl version
+
+4--Setup Kubernetes using eksctl
+eksctl create cluster --name virtualtechbox-cluster \
+--region ap-south-1 \
+--node-type t2.small \
+--nodes 3 \
+
+5-- Verify Cluster with below command
+$ kubectl get nodes
+========================================================================================================================================================================================================================================
+[C] Setup Monitoring for Kubernetes using Helm, Prometheus and Grafana Dashboard
+1 ) Install Helm Chart
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+chmod 700 get_helm.sh
+./get_helm.sh
+helm version
+
+2 )
+helm repo add stable https://charts.helm.sh/stable                    //add the Helm Stable Charts for your local client
+
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts                      //Add Prometheus Helm repo
+
+kubectl create namespace prometheus                    //Create Prometheus namespace
+
+helm install stable prometheus-community/kube-prometheus-stack -n prometheus              //Install Prometheus
+
+kubectl get pods -n prometheus       //check whether Prometheus is installed or not 
+
+kubectl get svc -n prometheus        //check the services file (svc) of the Prometheus
+
+//Grafana will be coming along with Prometheus as the stable version
+
+3 ) let’s expose Prometheus to the external world
+
+kubectl edit svc stable-kube-prometheus-sta-prometheus -n prometheus                 //change it from Cluster IP to LoadBalancer.change port & targetport to 9090, save and close
+
+kubectl get svc -n prometheus    //copy dns name of LB and browse with 9090
+
+4 ) let’s change the SVC file of the Grafana and expose it to the outer world
+
+kubectl edit svc stable-grafana -n prometheus            //change it from Cluster IP to LoadBalancer
+
+kubectl get svc -n prometheus         //copy dns name of LB and browse
+
+kubectl get secret --namespace prometheus stable-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo           //use this command to get the password. the user name is admin
+
+5) Import dashboard - 15760 - Load - Select Prometheus  & Click Import. 
+6) Import dashboard - 12740 - Load - Select Prometheus  & Click Import. 
+========================================================================================================================================================================================================================================
+Refer---https://argo-cd.readthedocs.io/en/stable/cli_installation/
+[D] ArgoCD Installation on Kubernetes Cluster and Add EKS Cluster to ArgoCD
+1 ) First, create a namespace
+    $ kubectl create namespace argocd
+
+2 ) Next, let's apply the yaml configuration files for ArgoCd
+    $ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+3 ) Now we can view the pods created in the ArgoCD namespace.
+    $ kubectl get pods -n argocd
+
+4 ) To interact with the API Server we need to deploy the CLI:
+    $ sudo curl --silent --location -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v2.4.7/argocd-linux-amd64
+    $ sudo chmod +x /usr/local/bin/argocd
+      
+5 ) Expose argocd-server
+    $ kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+
+6 ) Wait about 2 minutes for the LoadBalancer creation
+    $ kubectl get svc -n argocd
+
+7 ) Get pasword and decode it and login to ArgoCD on Browser. Go to user info and change the password
+    $ kubectl get secret argocd-initial-admin-secret -n argocd -o yaml
+    $ echo WXVpLUg2LWxoWjRkSHFmSA== | base64 --decode
+
+8 ) login to ArgoCD from CLI
+    $ argocd login a2255bb2bb33f438d9addf8840d294c5-785887595.ap-south-1.elb.amazonaws.com --username admin,    provide the password which you set above
+
+9 ) On ArgoCD Dashboard - Settings - Cluster, show there is only one cluster here then run below commands on CLI to get the same ArgoCD cluster
+     $ argocd cluster list
+
+10 ) Below command will show the EKS cluster
+     $ kubectl config get-contexts
+
+11 ) Add above EKS cluster to ArgoCD with below command
+     $ argocd cluster add i-08b9d0ff0409f48e7@virtualtechbox-cluster.ap-south-1.eksctl.io --name virtualtechbox-eks-cluster
+     
+12 ) Now if you give command "$ argocd cluster list" you will get both the clusters EKS & AgoCD(in-cluster). This can be verified at ArgoCD Dashboard.
+========================================================================================================================================================================================================================================
+[E] Verify the CI/CD Pipeline
+git config --global user.name "Ashfaque.Shaikh"
+git config --global user.email "ashfaque.s510@gmail.com"
+git clone https://github.com/Ashfaque-9x/a-reddit-clone.git
