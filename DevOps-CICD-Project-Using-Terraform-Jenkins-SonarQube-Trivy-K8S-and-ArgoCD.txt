@@ -199,10 +199,10 @@ Refer---https://argo-cd.readthedocs.io/en/stable/cli_installation/
 8 ) login to ArgoCD from CLI
     $ argocd login a2255bb2bb33f438d9addf8840d294c5-785887595.ap-south-1.elb.amazonaws.com --username admin,    provide the password which you set above
 
-9 ) On ArgoCD Dashboard - Settings - Cluster, show there is only one cluster here then run below commands on CLI to get the same ArgoCD cluster
+9 ) Check available clusters in ArgoCD
      $ argocd cluster list
 
-10 ) Below command will show the EKS cluster
+10 ) Below command will show the EKS cluster details
      $ kubectl config get-contexts
 
 11 ) Add above EKS cluster to ArgoCD with below command
