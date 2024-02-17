@@ -1,0 +1,187 @@
+Video -- https://youtu.be/E_ZoNZKNsvU
+Repository -- https://bitbucket.org/vtechbox/registration-app/src/main/
+AWS CLI Download -- https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+VS Code Download -- https://code.visualstudio.com/download
+=========================================================================================================================================================================================================================================
+[A] Let's use Terraform to create an EC2 instance for Jenkins, Docker and SonarQube
+
+1) main.tf
+resource "aws_instance" "web" {
+  ami                    = "ami-03f4878755434977f"      #change ami id for different region
+  instance_type          = "t2.large"
+  key_name               = "Linux-VM-Key-6"              #change key name as per your setup
+  vpc_security_group_ids = [aws_security_group.Jenkins-VM-SG.id]
+  user_data              = templatefile("./install.sh", {})
+
+  tags = {
+    Name = "Jenkins-SonarQube"
+  }
+
+  root_block_device {
+    volume_size = 40
+  }
+}
+
+resource "aws_security_group" "Jenkins-VM-SG" {
+  name        = "Jenkins-VM-SG"
+  description = "Allow TLS inbound traffic"
+
+  ingress = [
+    for port in [22, 80, 443, 8080, 9000, 3000, 8081, 8082] : {
+      description      = "inbound rules"
+      from_port        = port
+      to_port          = port
+      protocol         = "tcp"
+      cidr_blocks      = ["0.0.0.0/0"]
+      ipv6_cidr_blocks = []
+      prefix_list_ids  = []
+      security_groups  = []
+      self             = false
+    }
+  ]
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "Jenkins-VM-SG"
+  }
+}
+
+2)provider.tf
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+# Configure the AWS Provider
+provider "aws" {
+  region = "ap-south-1"     #change region as per you requirement
+}
+
+3) install.sh
+#!/bin/bash
+sudo apt update -y
+wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | tee /etc/apt/keyrings/adoptium.asc
+echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list
+sudo apt update -y
+sudo apt install temurin-17-jdk -y
+/usr/bin/java --version
+curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/ | sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
+sudo apt-get update -y
+sudo apt-get install jenkins -y
+sudo systemctl start jenkins
+sudo systemctl status jenkins
+
+##Install Docker and Run SonarQube as Container
+sudo apt-get update
+sudo apt-get install docker.io -y
+sudo usermod -aG docker ubuntu
+sudo usermod -aG docker jenkins  
+newgrp docker
+sudo chmod 777 /var/run/docker.sock
+docker run -d --name sonar -p 9000:9000 sonarqube:lts-community
+
+#install trivy
+sudo apt-get install wget apt-transport-https gnupg lsb-release -y
+wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+sudo apt-get update
+sudo apt-get install trivy -y
+
+#install maven
+sudo apt-get update
+sudo apt install openjdk-17-jdk -y
+sudo apt install maven -y
+
+4)
+terraform init
+terraform plan
+terraform apply -auto-approve
+
+5)
+jenkins --version
+docker --version
+trivy --version
+mvn --version
+
+=========================================================================================================================================================================================================================================
+[B] Configure JFrog Artifactory
+https://jfrog.com/download-jfrog-platform/
+https://jfrog.com/help/r/jfrog-installation-setup-documentation/install-artifactory-single-node-with-docker
+
+1) 
+sudo mkdir -p $JFROG_HOME/artifactory/var/etc/
+cd $JFROG_HOME/artifactory/var/etc/
+sudo touch ./system.yaml
+sudo chown -R 1030:1030 $JFROG_HOME/artifactory/var
+
+2) docker run --name artifactory -v $JFROG_HOME/artifactory/var/:/var/opt/jfrog/artifactory -d -p 8081:8081 -p 8082:8082 releases-docker.jfrog.io/jfrog/artifactory-oss:latest
+=========================================================================================================================================================================================================================================
+[C] Create AWS EKS Cluster and Download the Config/Secret file for EKS Cluster 
+
+1--Install kubectl on Jenkins
+ sudo apt update
+ sudo apt install curl
+ curl -LO https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl
+ sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+ kubectl version --client
+
+2--Install AWS Cli
+
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+sudo apt install unzip
+unzip awscliv2.zip
+sudo ./aws/install
+aws --version
+
+3--Installing  eksctl
+
+curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+cd /tmp
+sudo mv /tmp/eksctl /bin
+eksctl version
+
+4--Create an IAM Role and attache it to EC2 instance
+AWS Dashboard-IAM-Create Role-AWS Service,EC2-Next-AmazonEC2FullAccess,AWSCloudFormationFullAccess,IAMFullAccess,AdministratorAccess-Next-Role name:eksctl_role-create role.
+EC2 Dashboard-Instances-Jenkins-SonarQube-Actions-Security-Modify IAM Role-choose eksctl_role-Update IAM role
+
+5--Setup Kubernetes using eksctl
+Refer--https://github.com/aws-samples/eks-workshop/issues/734
+eksctl create cluster --name virtualtechbox-cluster \
+--region ap-south-1 \
+--node-type t2.small \
+--nodes 3 \
+
+6-- Verify Cluster with below command
+$ kubectl get nodes
+
+7--Donload the config file from "/home/ubuntu/.kube/config" and save it as secret.txt in your system.
+
+==========================================================================================================================================================================================================================================
+[D] Set the Trigger and Verify the CI/CD Pipeline
+
+1)
+git config --global user.name "Ashfaque.Shaikh"
+git config --global user.email "ashfaque.s510@gmail.com"
+git clone https://ashfaque-9x@bitbucket.org/vtechbox/registration-app.git
+==========================================================================================================================================================================================================================================
+[E] Cleanup
+
+1) kubectl get all    ///It will show all the deployment & services.
+
+2) kubectl delete deployment.apps/registerapp-deployment          ///Replace with your deployment name.
+
+3) kubectl delete service/registerapp-service                     ///It will Delete the LoadBalancer service.Replace with your service name.
+
+4) eksctl delete cluster virtualtechbox-cluster --region ap-south-1     OR    eksctl delete cluster --region=ap-south-1 --name=virtualtechbox-cluster              ///Delete EKS Cluster.
+
+5) terraform destroy                         ///Delete EC2 Instance with below Terraform Command.
