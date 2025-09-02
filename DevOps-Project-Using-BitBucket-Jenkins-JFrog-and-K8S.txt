@@ -124,7 +124,9 @@ cd $JFROG_HOME/artifactory/var/etc/
 sudo touch ./system.yaml
 sudo chown -R 1030:1030 $JFROG_HOME/artifactory/var
 
-2) docker run --name artifactory -v $JFROG_HOME/artifactory/var/:/var/opt/jfrog/artifactory -d -p 8081:8081 -p 8082:8082 releases-docker.jfrog.io/jfrog/artifactory-oss:latest
+2) docker run --name artifactory \
+  -d -p 8081:8081 -p 8082:8082 \
+  releases-docker.jfrog.io/jfrog/artifactory-oss:7.12.6
 =========================================================================================================================================================================================================================================
 [C] Create AWS EKS Cluster and Download the Config/Secret file for EKS Cluster 
 
