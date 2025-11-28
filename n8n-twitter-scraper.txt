@@ -1,0 +1,102 @@
+https://twitterapi.io/
+https://docs.twitterapi.io/introduction
+=============================================================================================================================================================================================================================================================================
+A] Code for the first code block
+const pagesToScrape = $input.first().json.pagesToScrape;
+const searchTerm = $input.first().json.searchTerm;
+
+const pages = [];
+for (let i = 1; i <= pagesToScrape; i++) {
+  // Create consecutive 1-day ranges
+  const daysAgo = i - 1; // 0, 1, 2 days ago
+  const since = new Date();
+  since.setDate(since.getDate() - daysAgo - 1);
+  const until = new Date();
+  until.setDate(until.getDate() - daysAgo);
+  
+  pages.push({
+    json: {
+      page_number: i,
+      search_term: searchTerm,
+      since: since.toISOString().split('T')[0],
+      until: until.toISOString().split('T')[0],
+      total_pages: pagesToScrape
+    }
+  });
+}
+
+return pages;
+
+=============================================================================================================================================================================================================================================================================
+B] Code for the second code block
+// This approach handles both single tweets and collections
+// It focuses on properly formatting the output for n8n
+// First, let's log what we're working with for debugging
+console.log("Input item structure:", JSON.stringify($input.item, null, 2));
+
+// Function to format the date in a more human-readable way
+function formatDate(dateString) {
+  if (!dateString) return '';
+  
+  try {
+    const date = new Date(dateString);
+    // Format: "March 13, 2025 at 19:25"
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (error) {
+    console.log("Error formatting date:", error);
+    return dateString; // Return original if parsing fails
+  }
+}
+
+// Check if this is a Twitter Search result with multiple tweets
+if ($input.item.json.tweets && Array.isArray($input.item.json.tweets) && $input.item.json.tweets.length > 0) {
+  // This is a collection of tweets
+  // In n8n, to output multiple items, we need to use an array of objects with a json property
+  const items = $input.item.json.tweets.map(tweet => {
+    return {
+      json: {
+        tweetId: tweet.id || '',
+        url: tweet.url || '',
+        content: tweet.text || '',
+        likeCount: tweet.likeCount || 0,
+        retweetCount: tweet.retweetCount || 0,
+        replyCount: tweet.replyCount || 0,
+        quoteCount: tweet.quoteCount || 0,
+        viewCount: tweet.viewCount || 0,
+        createdAt: formatDate(tweet.createdAt)
+      }
+    };
+  });
+  
+  console.log(`Processing ${items.length} tweets`);
+  
+  // Return all items
+  return items;
+} else {
+  // This is a single tweet, just extract and return its data
+  const tweetData = {
+    tweetId: $input.item.json.id || '',
+    url: $input.item.json.url || '',
+    content: $input.item.json.text || '',
+    likeCount: $input.item.json.likeCount || 0,
+    retweetCount: $input.item.json.retweetCount || 0,
+    replyCount: $input.item.json.replyCount || 0,
+    quoteCount: $input.item.json.quoteCount || 0,
+    viewCount: $input.item.json.viewCount || 0,
+    createdAt: formatDate($input.item.json.createdAt)
+  };
+  
+  console.log("Processing single tweet");
+  
+  // Return as a single item
+  return {
+    json: tweetData
+  };
+}
+=============================================================================================================================================================================================================================================================================
