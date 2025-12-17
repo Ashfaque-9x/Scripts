@@ -1,3 +1,4 @@
+https://medium.com/@cool.ashfaque/building-basic-rag-with-langchain-huggingface-and-chromadb-e04f976fe135
 ============================================================How do you debug Terraform errors efficiently.txt==============================================================================
 Efficiently debugging Terraform errors requires a systematic approach, leveraging built-in tools, debug logs, and best practices to quickly identify and resolve issues in infrastructure code.​
 
